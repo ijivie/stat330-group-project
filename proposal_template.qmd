@@ -1,0 +1,144 @@
+---
+title: "Airfoil Self-Noise: A Proposal for Regression Analysis of Sound Pressure Level "
+subtitle: "STAT 330 Portfolio Project Proposal"
+author: "Anna Prusse, Gracie Long, and Indiana Ivie"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    code-fold: true
+    code-summary: "Show code"
+    embed-resources: true
+execute:
+  warning: false
+  message: false
+---
+
+## Question and audience
+
+Research question: How well can airfoil self-noise (sound pressure level) be predicted from frequency, angle of attack, chord length, free-stream velocity, and boundary-layer thickness, and which of these factors matters most?
+
+Audience: Engineers who design things like wind turbines, drones, and aircraft, where noise is a real concern.
+
+Why the answer matters: Airfoil noise is a big issue for wind turbines near homes and for aircraft around airports. If we know which factor drives noise the most, designers can focus on changing that one thing to make quieter equipment without guessing.
+
+Response and important predictors: The response variable is the scaled sound pressure level, measured in decibels, which tells us how loud the airfoil noise is. The candidate predictors are frequency, angle of attack, chord length, free stream velocity, and suction side displacement thickness. Frequency is the pitch of the sound being measured. Angle of attack is how tilted the airfoil is relative to the airflow. Chord length is the size of the air foil from front to back. Free stream velocity is how fast the air is moving, and suction side displacement thickness describes how thick the slow-moving layer of air is on top of the airfoil. 
+
+## Data
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+
+airfoil <- 
+  read_tsv("airfoil_self_noise.dat", 
+  col_names = c("frequency_hz", "angle_of_attack_deg", "chord_length_m", "free_stream_velocity_ms", "suction_side_thickness_m", "sound_pressure_db"),
+  show_col_types = FALSE
+  )
+
+dim(airfoil)
+glimpse(airfoil)
+```
+
+Observational unit: One wind tunnel test (a specific airfoil size, wind speed, angle, and frequency)
+
+Dimensions: 1503 x 6
+
+Response: scaled sound pressure level (airfoil self-noise) measured in decibels
+
+Candidate predictors: Frequency is the pitch of the sound being measured. Angle of attack is how tilted the airfoil is relative to the airflow. Chord length is the size of the airfoil from front to back. Free stream velocity is how fast the air is moving, and suction side displacement thickness describes how thick the slow-moving layer of air is on top of the airfoil. 
+
+Collection process: Thomas Brooks, D. Pope, and Michael Marcolini obtained this dataset from a series of aerodynamic and acoustic tests of two- and three-dimensional airfoil blade sections conducted in an anechoic wind tunnel.
+
+Evidence to answer question: Because this was a controlled experiment, each factor was deliberately changed across tests, which makes it possible to compare how much each one affects noise. The data is complete and the response is measured on a continuous scale. 
+
+Citation: Brooks, T., Pope, D., & Marcolini, M. (1989). Airfoil Self-Noise \[Dataset\]. UCI Machine Learning Repository. <https://doi.org/10.24432/C5VW2C>
+
+Permission to share: This dataset is licensed under a Creative Commons Attribution 4.0 International (CC BY 4.0) license. This allows for the sharing and adaptation of the datasets for any purpose, provided that the appropriate credit is given.
+
+Privacy & Ethics: The data has no personal information.
+
+Representation: All the tests were done in a wind tunnel on the same type of airfoil, so the results may not apply to other shapes or real-world conditions.
+
+Measurement: The sound pressure level is a scaled value, not a raw recording.
+
+## One useful first look
+
+```{r}
+names(airfoil) <- c(
+  "Frequency",
+  "Attack_angle",
+  "Chord_length",
+  "Air_velocity",
+  "Displacement_thickness",
+  "Sound_pressure"
+)
+
+predictor_labels <- c(
+  Frequency = "Frequency (Hz)",
+  Attack_angle = "Angle of attack (degrees)",
+  Chord_length = "Chord length (m)",
+  Air_velocity = "Free-stream velocity (m/s)",
+  Displacement_thickness = "Boundary-layer displacement thickness (m)"
+)
+
+airfoil |>
+  pivot_longer(
+    cols = -Sound_pressure,
+    names_to = "Predictor",
+    values_to = "Value"
+) |>
+  ggplot(aes(x = Value, y = Sound_pressure)) +
+  geom_point(alpha = 0.25, color = "#0072B2") +
+  geom_smooth(
+    method = "loess",
+    se = FALSE,
+    color = "#D55E00"
+) + facet_wrap(
+  ~ Predictor,
+  scales = "free_x",
+  ncol = 2,
+  labeller = as_labeller(predictor_labels)
+) + labs(
+  title = "How Airfoil Sound Pressure Relates to Five Predictors",
+  x = NULL,
+  y = "Scaled sound pressure level (dB)",
+  caption = "Each point is a measurement; orange curves show overall trends."
+) + theme_minimal(base_size = 12)
+
+airfoil |> 
+  summarise(across(-Sound_pressure, ~ cor(.x, Sound_pressure))) |> 
+  pivot_longer(everything(), 
+  names_to = "predictor", 
+  values_to = "correlation") |> 
+  arrange(desc(abs(correlation)))
+```
+
+Sound pressure tends to be lower at higher frequencies and at greater boundary-layer displacement thickness, which are the most obvious trends across the plots. The frequency relationship is curved rather than linear. Every plot shows a wide vertical spread at each predictor value, so no single predictor explains most of the variation on its own. These are only associations, so they don't show that changing a predictor would change the sound level. 
+
+## Baseline model
+
+We will start with a multiple linear regression that predicts scaled sound pressure level from all five predictors. This is a good starting model because it’s simple, uses every predictor, and gives one coefficient per factor that we can interpret directly. It also gives us a baseline to compare against once we add transformations and interactions later.
+
+```{r}
+model <- lm(Sound_pressure ~ ., data = airfoil)
+
+summary(model)
+
+cbind(estimate = coef(model), confint(model))
+```
+
+Holding the other predictors constant, each 1-degree increase in angle of attack decreases the sound pressure level by 0.42 decibels (95% CI: about -0.5 to -0.35). 
+
+One limitation is that angle of attack and displacement thickness are closely related since steeper angles change the boundary layer on the airfoil. Because of this overlap, the model may struggle to separate their individual effects. 
+
+## Where the analysis could go
+
+1.  Model Structure: We would fit a linear regression for sound pressure level and then improve it with transformations and interactions. For example, we could use log transformations on frequency and velocity since their effects on noise probably aren’t straight lines. Or we could add an interaction between frequency and angle of attack to see if the effect of tilt changes depending on frequency. Both of these would help answer our question because they give a more accurate picture of how each factor affects noise, and the coefficients can still be interpreted to compare which predictors matter most.
+2.  Diagnostics and robustness: We would check for multicollinearity using variance inflation factors, since displacement thickness is closely related to angle of attack, chord length, and velocity. If the VIFs are high, we could fix it by removing or combining predictors or by using ridge regression. This would help answer our question because if predictors overlap too much, their coefficients become unstable, and it’s hard to tell which one is really driving the noise. Fixing that makes our conclusions about the most important factor more trustworthy.
+
+## AI disclosure and sources
+
+We used AI to help debug our code and fix errors, and to double-check our work.
+
+Brooks, T., Pope, D., & Marcolini, M. (1989). Airfoil Self-Noise [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5VW2C
