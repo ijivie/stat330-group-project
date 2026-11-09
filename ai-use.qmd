@@ -1,0 +1,43 @@
+---
+title: "AI Use and Verification"
+description: "A concise record of AI-supported work on this project."
+author: "Anna Prusse, Gracie Long, and Indiana Ivie"
+---
+
+
+## Starting point
+
+ClaudeAI 11-09-2026
+
+Our question is which factor has the biggest effect on airfoil self-noise. Our course-based core model is a multiple linear regression predicting scaled sound pressure level (dB) from frequency, angle of attack, chord length, free-stream velocity, and suction side displacement thickness. The baseline model has R² = 0.5157 and a residual standard error of 4.809 dB. The main limitation is that frequency has a clearly curved relationship with noise that a straight-line model can't capture, and angle of attack and displacement thickness appear correlated.
+
+## Substantive prompts
+
+We are creating a regression case study in R and Quarto. My question is which factor has the biggest effect on airfoil self-noise. The response is scaled sound pressure level in decibels. The predictors are frequency (Hz), angle of attack (degrees), chord length (m), free-stream velocity (m/s), and suction side displacement thickness (m). Our course-based core model is a multiple linear regression with all five predictors. My main result so far is R² = 0.5157 with a residual standard error of 4.809 dB. Holding other predictors constant, each 1-degree increase in angle of attack is associated with about a 0.42 dB decrease in noise. We found this limitation: frequency has a clearly curved relationship with noise that a straight-line model can't capture, and angle of attack and displacement thickness appear correlated. Suggest three feasible extensions that keep the core analysis connected to regression methods taught in my class. One option may be a model not taught in class used as a comparator. For each, explain how it strengthens the same research question, how its result would enter the final case study, the implementation steps, and two ways we could verify it. Do not choose for us, give us several options.
+
+## My decisions
+
+We will fit a random forest as a comparator to our course-based regression, using the same response, predictors, and cross-validation folds. We will compare cross-validated RMSE across models and compare the forest's permutation importance ranking to our regression ranking. The regression stays the main explanatory model.
+
+The AI presented its three suggestions as separate extension options. Since Options 1 and 2 (modeling frequency's curvature and checking angle–thickness collinearity) use methods taught in STAT 330, we kept them as our two required course elements instead of treating them as the extension. We will use Option 3, the random forest, as our beyond-course extension. 
+rejected: The AI said angle of attack takes only a handful of distinct values. Our data has 27 distinct angles. This was wrong because only chord length (6 values) and velocity (4 values) are that limited.
+
+The random forest will appear in a short comparator section after the multiple linear regression models, with one table comparing cross-validated RMSE and importance rankings across models. If the forest ranks the factors the same way our regression does, that strengthens our answer to which factor matters most. If it ranks them differently, that points to curvature or interactions our linear model is missing.
+
+## Independent verification
+
+1. Out-of-bag vs. cross-validated error: The random forest's out-of-bag RMSE should be close to its cross-validated RMSE, since both estimate error on unseen data (Breiman, 2001; Liaw & Wiener, 2002). A large gap would suggest a setup mistake.
+
+2. Stability and agreement with multiple linear regression: We will refit the forest with several random seeds to confirm the importance ranking is stable, and check that the partial dependence curve for frequency has the same shape we found in our multiple linear regression (Greenwell, 2017).
+
+Breiman, L. (2001). Random forests. *Machine Learning, 45*(1), 5–32. https://doi.org/10.1023/A:1010933404324 - Liaw, A., & Wiener, M. (2002). Classification and regression by randomForest. *R News, 2*(3), 18–22. https://CRAN.R-project.org/package=randomForest
+
+Greenwell, B. M. (2017). pdp: An R package for constructing partial dependence plots. *The R Journal, 9*(1), 421–436.
+
+## Remaining limitation
+
+Chord length and velocity were only tested at a few set values, and angle of attack and displacement thickness tend to rise together. Because of this, both models may have trouble telling how much each of these predictors matters on its own, so if two of them rank close together, we shouldn't read too much into the order.
+
+## Other AI use, if any
+
+We used ClaudeAI to help find sources about the dataset and random forests, but we read through those sources ourselves. We also used it to help us understand what we were reading, to word parts of the proposal, and to walk us through publishing the site with Quarto and GitHub Pages.
